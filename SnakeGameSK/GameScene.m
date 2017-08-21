@@ -8,75 +8,114 @@
 
 #import "GameScene.h"
 
-@implementation GameScene {
-    SKShapeNode *_spinnyNode;
-    SKLabelNode *_label;
+static const uint32_t snakeBodyCategory     =  0x1 << 0;
+static const uint32_t snakeHeadCategory     =  0x1 << 1;
+
+@interface GameScene () <SKPhysicsContactDelegate>
+
+@property (strong, nonatomic) SKSpriteNode *snakeHead;
+@property (assign, nonatomic) NSTimeInterval lastUpdateTimeInterval;
+
+@property (assign, nonatomic) NSInteger xDirection;
+@property (assign, nonatomic) NSInteger yDirection;
+
+@end
+
+@implementation GameScene
+
+- (instancetype)initWithSize:(CGSize)size
+{
+    self = [super initWithSize:size];
+    if (self) {
+        
+        NSLog(@"Size: %@", NSStringFromCGSize(size));
+        
+        self.backgroundColor = [SKColor whiteColor];
+        self.physicsWorld.contactDelegate = self;
+        self.snakeHead = [SKSpriteNode spriteNodeWithImageNamed:@"snake_head"];
+        self.snakeHead.size = CGSizeMake(40, 40);
+        self.snakeHead.position = CGPointMake(10, 10);
+        self.xDirection = 0;
+        self.yDirection = 0;
+        
+        [self addChild:self.snakeHead];
+        
+    }
+    return self;
 }
+
+- (void)moveSnakeHead:(SKSpriteNode *)snakeHead withXDirection:(NSInteger)xDirection andYDirection:(NSInteger)yDirection {
+    
+    SKAction *moveAction = [SKAction moveTo:CGPointMake(self.snakeHead.position.x + xDirection, self.snakeHead.position.y + yDirection) duration:0.5];
+    //SKAction *moveDoneAction = [SKAction stop];
+    [self.snakeHead runAction:[SKAction sequence:@[moveAction]]];
+    
+}
+
+- (void)update:(NSTimeInterval)currentTime {
+    
+    [self moveSnakeHead:self.snakeHead withXDirection:self.xDirection andYDirection:self.yDirection];
+
+}
+
 
 - (void)didMoveToView:(SKView *)view {
-    // Setup your scene here
     
-    // Get label node from scene and store it for use later
-    _label = (SKLabelNode *)[self childNodeWithName:@"//helloLabel"];
+    UISwipeGestureRecognizer *swipeLeft = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeAction:)];
+    swipeLeft.direction = UISwipeGestureRecognizerDirectionLeft;
+    [view addGestureRecognizer:swipeLeft];
     
-    _label.alpha = 0.0;
-    [_label runAction:[SKAction fadeInWithDuration:2.0]];
+    UISwipeGestureRecognizer *swipeRight = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeAction:)];
+    swipeRight.direction = UISwipeGestureRecognizerDirectionRight;
+    [view addGestureRecognizer:swipeRight];
     
-    CGFloat w = (self.size.width + self.size.height) * 0.05;
+    UISwipeGestureRecognizer *swipeUp = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeAction:)];
+    swipeUp.direction = UISwipeGestureRecognizerDirectionUp;
+    [view addGestureRecognizer:swipeUp];
     
-    // Create shape node to use during mouse interaction
-    _spinnyNode = [SKShapeNode shapeNodeWithRectOfSize:CGSizeMake(w, w) cornerRadius:w * 0.3];
-    _spinnyNode.lineWidth = 2.5;
+    UISwipeGestureRecognizer *swipeDown = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeAction:)];
+    swipeDown.direction = UISwipeGestureRecognizerDirectionDown;
+    [view addGestureRecognizer:swipeDown];
     
-    [_spinnyNode runAction:[SKAction repeatActionForever:[SKAction rotateByAngle:M_PI duration:1]]];
-    [_spinnyNode runAction:[SKAction sequence:@[
-                                                [SKAction waitForDuration:0.5],
-                                                [SKAction fadeOutWithDuration:0.5],
-                                                [SKAction removeFromParent],
-                                                ]]];
-}
-
-
-- (void)touchDownAtPoint:(CGPoint)pos {
-    SKShapeNode *n = [_spinnyNode copy];
-    n.position = pos;
-    n.strokeColor = [SKColor greenColor];
-    [self addChild:n];
-}
-
-- (void)touchMovedToPoint:(CGPoint)pos {
-    SKShapeNode *n = [_spinnyNode copy];
-    n.position = pos;
-    n.strokeColor = [SKColor blueColor];
-    [self addChild:n];
-}
-
-- (void)touchUpAtPoint:(CGPoint)pos {
-    SKShapeNode *n = [_spinnyNode copy];
-    n.position = pos;
-    n.strokeColor = [SKColor redColor];
-    [self addChild:n];
-}
-
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
-    // Run 'Pulse' action from 'Actions.sks'
-    [_label runAction:[SKAction actionNamed:@"Pulse"] withKey:@"fadeInOut"];
+    [self generateNewBody];
     
-    for (UITouch *t in touches) {[self touchDownAtPoint:[t locationInNode:self]];}
-}
-- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event{
-    for (UITouch *t in touches) {[self touchMovedToPoint:[t locationInNode:self]];}
-}
-- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
-    for (UITouch *t in touches) {[self touchUpAtPoint:[t locationInNode:self]];}
-}
-- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
-    for (UITouch *t in touches) {[self touchUpAtPoint:[t locationInNode:self]];}
 }
 
+- (void)swipeAction:(UISwipeGestureRecognizer *)sender {
+    
+    switch (sender.direction) {
+        case UISwipeGestureRecognizerDirectionLeft:
+            self.snakeHead.zRotation = M_PI/2;
+            self.xDirection = self.yDirection = 0;
+            self.xDirection = -40;
+            break;
+        case UISwipeGestureRecognizerDirectionRight:
+            self.snakeHead.zRotation = -M_PI/2;
+            self.xDirection = self.yDirection = 0;
+            self.xDirection = 40;
+            break;
+        case UISwipeGestureRecognizerDirectionUp:
+            self.snakeHead.zRotation = 0;
+            self.xDirection = self.yDirection = 0;
+            self.yDirection = 40;
+            break;
+        case UISwipeGestureRecognizerDirectionDown:
+            self.snakeHead.zRotation = -M_PI;
+            self.xDirection = self.yDirection = 0;
+            self.yDirection = -40;
+            break;
 
--(void)update:(CFTimeInterval)currentTime {
-    // Called before each frame is rendered
+    }
+    
+}
+
+- (void)generateNewBody {
+    
+    SKSpriteNode *newBody = [SKSpriteNode spriteNodeWithImageNamed:@"snake_body"];
+    newBody.size = CGSizeMake(40, 40);
+    newBody.position = CGPointMake(100, 100);
+    [self addChild:newBody];
+
 }
 
 @end
