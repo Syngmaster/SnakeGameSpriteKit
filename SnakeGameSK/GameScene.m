@@ -47,12 +47,11 @@ static const uint32_t snakeBodyCategory     =  0x1 << 1;
         self.snakeHead.physicsBody = [SKPhysicsBody bodyWithRectangleOfSize:self.snakeHead.size];
         self.snakeHead.physicsBody.categoryBitMask = snakeHeadCategory;
         self.snakeHead.physicsBody.contactTestBitMask = snakeBodyCategory;
-        self.snakeHead.physicsBody.dynamic = YES;
+        self.snakeHead.physicsBody.dynamic = NO;
         self.snakeHead.physicsBody.allowsRotation = NO;
         self.snakeHead.physicsBody.affectedByGravity = NO;
+        self.snakeBody = [NSMutableArray array];
 
-        
-        
         self.xDirection = 0;
         self.yDirection = 0;
         
@@ -64,19 +63,10 @@ static const uint32_t snakeBodyCategory     =  0x1 << 1;
 
 - (void)moveSnakeHead:(SKSpriteNode *)snakeHead withXDirection:(NSInteger)xDirection andYDirection:(NSInteger)yDirection {
     
-    SKAction *moveAction = [SKAction moveTo:CGPointMake(self.snakeHead.position.x + xDirection, self.snakeHead.position.y + yDirection) duration:0.5];
+    SKAction *moveAction = [SKAction moveTo:CGPointMake(self.snakeHead.position.x + xDirection, self.snakeHead.position.y + yDirection) duration:0.3];
     //SKAction *moveDoneAction = [SKAction stop];
     [self.snakeHead runAction:[SKAction sequence:@[moveAction]]];
-    
-    
-    /*for (NSInteger i = [self.snakeBody count] - 1; i > 0; i--) {
-        
-        SKSpriteNode *firstNode = self.snakeBody[i-1];
-        SKSpriteNode *secondNode = self.snakeBody[i];
-        
-        secondNode.position = firstNode.position;
-    }*/
-    
+
 }
 
 - (void)update:(NSTimeInterval)currentTime {
@@ -148,40 +138,50 @@ static const uint32_t snakeBodyCategory     =  0x1 << 1;
     snakeBody.physicsBody = [SKPhysicsBody bodyWithRectangleOfSize:snakeBody.size];
     snakeBody.physicsBody.categoryBitMask = snakeBodyCategory;
     snakeBody.physicsBody.contactTestBitMask = snakeHeadCategory;
-    snakeBody.physicsBody.dynamic = NO;
+    snakeBody.physicsBody.dynamic = YES;
     snakeBody.physicsBody.allowsRotation = NO;
     snakeBody.physicsBody.affectedByGravity = NO;
+    snakeBody.physicsBody.restitution = 1.0;
 
     [self addChild:snakeBody];
-    [self.snakeBody addObject:snakeBody];
 }
 
 - (void)snakeHead:(SKSpriteNode *)snakeHead contactedWithSnakeBody:(SKSpriteNode *)snakeBody {
     
-    [snakeBody removeFromParent];
+    //[snakeBody removeFromParent];
     [self generateNewBody];
-        
-    snakeBody.position = CGPointMake(snakeHead.position.x, snakeHead.position.y - 40 * (1 + (int)[snakeHead.children count]));
-    [self addChild:snakeBody];
+    [self.snakeBody addObject:snakeBody];
     
-    NSLog(@"children - %lu", (unsigned long)[self.children count]);
+    if ((int)[self.snakeBody count] == 1) {
+        snakeBody.position = CGPointMake(snakeHead.position.x, snakeHead.position.y - 40);
+
+    } else {
+        
+        SKSpriteNode *lastBody = self.snakeBody[(int)[self.snakeBody count] - 1];
+        snakeBody.position = CGPointMake(lastBody.position.x, lastBody.position.y - 40);
+    }
     
-    if ((int)[self.children count] == 3) {
+
+    //[self addChild:snakeBody];
+    
+    //NSLog(@"children - %lu", (unsigned long)[self.children count]);
+    
+    if ((int)[self.snakeBody count] == 1) {
         
-        
-        SKPhysicsJointFixed *connect = [SKPhysicsJointFixed jointWithBodyA:snakeHead.physicsBody bodyB:snakeBody.physicsBody anchor:CGPointMake(CGRectGetMidX(snakeHead.frame), CGRectGetMidY(snakeHead.frame))];
+        SKPhysicsJointPin *connect = [SKPhysicsJointPin jointWithBodyA:snakeHead.physicsBody bodyB:snakeBody.physicsBody anchor:CGPointMake(CGRectGetMidX(snakeHead.frame), CGRectGetMidY(snakeHead.frame))];
         [self.physicsWorld addJoint:connect];
         
     } else {
         
-        SKPhysicsJointFixed *connect = [SKPhysicsJointFixed jointWithBodyA:snakeHead.physicsBody bodyB:snakeBody.physicsBody anchor:CGPointMake(CGRectGetMidX(snakeHead.frame), CGRectGetMidY(snakeHead.frame))];
+        SKSpriteNode *firstNode = self.snakeBody[(int)[self.snakeBody count] - 2];
+        SKSpriteNode *secondNode = self.snakeBody[(int)[self.snakeBody count] - 1];
+        
+        SKPhysicsJointPin *connect = [SKPhysicsJointPin jointWithBodyA:firstNode.physicsBody bodyB:secondNode.physicsBody anchor:CGPointMake(CGRectGetMidX(firstNode.frame), CGRectGetMidY(firstNode.frame))];
         [self.physicsWorld addJoint:connect];
         
     }
+    
 
-
-    //NSLog(@"snakeHead - %@", NSStringFromCGPoint(snakeHead.position));
-    //NSLog(@"snakeBody - %@", NSStringFromCGPoint(snakeBody.position));
 
 }
 
